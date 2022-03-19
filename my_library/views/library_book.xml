@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id='library_book_action' model='ir.actions.act_window'>
+        <field name="name">Library Books</field>
+        <field name="res_model">library.book</field>
+        <field name="view_mode">kanban,tree,calendar,form</field>
+    </record>
+
+    <menuitem name="My Library" id="library_base_menu" />
+    <menuitem name="Books" id="library_book_menu" parent="library_base_menu" action="library_book_action"/>
+
+    <!-- Form View -->
+    <record id="library_book_view_form" model="ir.ui.view">
+        <field name="name">Library Book Form</field>
+        <field name="model">library.book</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="make_available" string="Make Available" type="object" class="btn-primary" attrs="{'invisible':[('state','=','available')]}"/>
+                    <button name="make_borrowed"  string="Make Borrowed" type="object" class="btn-primary" attrs="{'invisible':[('state','=','borrowed')]}"/>
+                    <button name="make_lost"  string="Make Lost" type="object" class="btn-primary" attrs="{'invisible':[('state','=','lost')]}"/>
+                    <button name="log_all_library_members"  string="Log Members" type="object" class="btn-primary" invisible="1"/>
+                    <button name="create_categories" string="Create Categories" type="object" class="btn-primary" invisible="1"/>
+                    <button name="change_release_date" string="Update Date" type="object" class="btn-primary"/>
+                    <button name="find_book" string="Find Book" type="object" class="btn-primary" invisible="1"/>
+                    <button name="filter_books" string="Filter Book " type="object" class="btn-primary" invisible="1"/>
+                    <button name="mapped_books" string="Mapped authors " type="object" class="btn-primary" invisible="1"/>
+                    <button name="sort_books" string="Sort Books " type="object" class="btn-primary" invisible="1"/>
+                    <field name="state" widget="statusbar"/>
+                </header>
+                <sheet>
+                <div class="oe_title">
+                    <h1><field name="name" placeholder="Title"/></h1>                   
+                </div>
+                <group>
+                    <group>
+                        <field name="client_id"/>
+                        <field name="book_image" widget="image" class="oe_avatar"/>
+                        <field name="author_ids"/>
+                    </group>
+                    <group>
+                        <field name="category_id"/>
+                        <field name="date_release"/>
+                        <field name="day_to_end"/>
+                    </group>
+                </group>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids" widget="mail_followers"/>
+                    <field name="activity_ids" widget="mail_activity"/>
+                    <field name="message_ids" widget="mail_thread"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+     <!--KANBAN-->
+     <record id="tienda_view_kanban" model="ir.ui.view">
+        <field name="name">Tienda Kanban</field>
+        <field name="model">library.book</field>
+        <field name="arch" type="xml">
+            <kanban default_group_by="state">
+                <field name="category_id"/>
+                <field name="name"/>
+                <templates>
+                    <t t-name="kanban-box">
+                        <div class="oe_kanban_global_click_edit">
+                        <strong class="o_kanban_record_title"><field name="book_image" widget="image" class="oe_avatar"/></strong>
+                            <div class="o_kanban_tags_section"/>
+                                <ul>
+                                    <li>Autor: <field name="name"/></li>
+                                    <li>Categoría: <field name="category_id"/></li>
+                                    <li>Dias restantes: <field name="day_to_end"/></li>                                  
+                                </ul>
+                        </div>
+                    </t>
+                </templates>
+            </kanban>
+        </field>
+    </record> 
+ 
+    <!-- Calendar -->
+    <record id="book_calendar_view" model="ir.ui.view">
+
+        <field name="name">calendar</field>
+
+        <field name="model">library.book</field>
+
+        <field name="arch" type="xml">
+
+            <calendar string="Books" date_start="date_release" color="state" quick_add="False" mode="month" event_open_popup="1">
+
+                <field name="name"/>
+
+                <field name="date_release"/>
+
+                <field name="author_ids"/>
+
+            </calendar>
+
+        </field>
+
+    </record>
+
+
+    <!-- Tree(list) View -->
+    <record id="library_book_view_tree" model="ir.ui.view">
+        <field name="name">Library Book List</field>
+        <field name="model">library.book</field>
+        <field name="arch" type="xml">
+            <tree>
+                <field name="name"/>
+                <field name="client_id"/>
+                <field name="date_release"/>
+                <field name="state"/> 
+                <field name="day_to_end"/> 
+            </tree>
+        </field>
+    </record>
+
+    <!-- Search View -->
+    <record id="library_book_view_search" model="ir.ui.view">
+        <field name="name">Library Book Search</field>
+        <field name="model">library.book</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name"/>
+                <field name="author_ids"/>
+                <filter string="Without Authors" name="without_author" domain="[('author_ids','=',False)]"/>
+            </search>
+        </field>
+    </record>
+
+</odoo>
