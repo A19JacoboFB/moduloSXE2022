@@ -1,6 +1,6 @@
 # ModuloSxe
 ## _Objetivo_
-El objetivo ha sido modificar el módulo de librerías e implementar nuevas finalidades, entre ellas adaptarse a un supuesto nuevo requerimiento que dicta que los libros pueden estar un máximo de 30 días en préstamo.
+El objetivo ha sido modificar el módulo de librerías e implementar nuevas funcionalidades, entre ellas adaptarse a un supuesto nuevo requerimiento que dicta que los libros pueden estar un máximo de 30 días en préstamo.
 ## _Estructura_
 La estructura de las vistas generales es:
 - **Books**:
