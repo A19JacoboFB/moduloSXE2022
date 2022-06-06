@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from datetime import datetime, timedelta
+from odoo.exceptions import ValidationError, UserError
 import logging
 
 from odoo import models, fields, api
@@ -11,16 +12,18 @@ logger = logging.getLogger(__name__)
 
 class LibraryBook(models.Model):
     _name = 'library.book'
-    _inherit = ['mail.thread','mail.activity.mixin']
+    _inherit = ['mail.thread', 'mail.activity.mixin']
     _description = 'Library Book'
 
-    day_to_end = fields.Char('Remaining days', compute = 'compute_day_end', store=True)
+    day_to_end = fields.Char('Remaining days', compute='compute_day_end', store=True)
     name = fields.Char('Title', required=True, tracking=True)
     date_release = fields.Date('Release Date', tracking=True)
     author_ids = fields.Char(string='Authors', tracking=True)
     client_id = fields.Many2one('res.partner', string='Clients', tracking=True)
     category_id = fields.Many2one('library.book.category', string='Category', tracking=True)
-    book_image = fields.Binary('Imagen', tracking=True)
+    book_image = fields.Binary('Image', tracking=True)
+    price_unit = fields.Float('Unit Price', required=True, digits='Product Price', default=0.0)
+    sale_order_id = fields.Many2one('sale.order', 'Sales Order', help="Sales order to which the task is linked.")
 
     state = fields.Selection([
         ('draft', 'Unavailable'),
@@ -53,15 +56,17 @@ class LibraryBook(models.Model):
     def make_borrowed(self):
         self.change_state('borrowed')
 
+    def create_order(self):
+        self.create_sale_order()
+
     def make_lost(self):
         self.change_state('lost')
 
     def log_all_library_members(self):
-        library_member_model = self.env['library.member']  # This is an empty recordset of model library.member
+        library_member_model = self.env['library.member']  
         all_members = library_member_model.search([])
         print("ALL MEMBERS:", all_members)
         return True
-
 
     def create_categories(self):
         categ1 = {
@@ -80,7 +85,7 @@ class LibraryBook(models.Model):
                 (0, 0, categ2),
             ]
         }
-        # Total 3 records (1 parent and 2 child) will be craeted in library.book.category model
+        
         record = self.env['library.book.category'].create(parent_category_val)
         return True
 
@@ -88,25 +93,31 @@ class LibraryBook(models.Model):
         self.ensure_one()
         self.date_release = fields.Date.today()
 
-    @api.depends('date_release','day_to_end')
+    @api.depends('date_release', 'day_to_end')
     def compute_day_end(self):
         for x in self:
-            if x.date_release:
+            fec = fields.Date.today()
+            if not x.date_release and fec:
+                return
+            elif x.date_release > fec:
+                x.write({'date_release': fec})
+                raise ValidationError(_("You are entering a date after the current one"))
+            else:
                 date_end = x.date_release + timedelta(days=30)
                 fecha_vencimiento = date_end - fields.Date.today()
-                if fecha_vencimiento.days >= 0:  
-                    x.day_to_end =str(fecha_vencimiento.days)
-                else: 
-                    x.write({'state':'lost'})         
+                if fecha_vencimiento.days >= 0:
+                    x.day_to_end = str(fecha_vencimiento.days)
+                else:
+                    x.write({'state': 'lost'})
                     x.day_to_end = 'lost'
 
     def find_book(self):
         domain = [
             '|',
-                '&', ('name', 'ilike', 'Book Name'),
-                     ('category_id.name', '=', 'Category Name'),
-                '&', ('name', 'ilike', 'Book Name 2'),
-                     ('category_id.name', '=', 'Category Name 2')
+            '&', ('name', 'ilike', 'Book Name'),
+            ('category_id.name', '=', 'Category Name'),
+            '&', ('name', 'ilike', 'Book Name 2'),
+            ('category_id.name', '=', 'Category Name 2')
         ]
         books = self.search(domain)
         logger.info('Books found: %s', books)
@@ -123,6 +134,7 @@ class LibraryBook(models.Model):
         def predicate(book):
             if len(book.author_ids) > 1:
                 return True
+
         return all_books.filtered(predicate)
 
     # Traversing recordset
@@ -146,9 +158,47 @@ class LibraryBook(models.Model):
     def sort_books_by_date(self, all_books):
         return all_books.sorted(key='date_release')
 
+    def create_sale_order(self):
+        
+        product_library_book = self.env['product.product'].create({
+            'name': self.name,
+            'type': 'service',
+        })
+
+        order = self.env['sale.order'].create({
+            'partner_id': self.client_id.id,
+            'book_id': self.id,
+            'order_line': [(0, 0, {
+                'product_id': product_library_book.id,
+                'product_uom_qty': 1,
+                'price_unit': self.price_unit,
+            })]
+        })
+        self.sale_order_id = order.id
+
+
+    def _get_action_view_so_ids(self):
+        return self.sale_order_id.ids
+
+    def action_view_so(self):
+        self.ensure_one()
+        so_ids = self._get_action_view_so_ids()
+        action_window = {
+            "type": "ir.actions.act_window",
+            "res_model": "sale.order",
+            "name": "Sales Order",
+            "views": [[False, "tree"], [False, "form"]],
+            "context": {"create": False, "show_sale": True},
+            "domain": [["id", "in", so_ids]],
+        }
+        if len(so_ids) == 1:
+            action_window["views"] = [[False, "form"]]
+            action_window["res_id"] = so_ids[0]
+
+        return action_window
+
 
 class LibraryMember(models.Model):
-
     _name = 'library.member'
     _inherits = {'res.partner': 'partner_id'}
     _description = "Library member"
